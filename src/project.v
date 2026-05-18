@@ -26,13 +26,47 @@ module tt_um_28add11_latchup(
   always @(posedge clk) begin
     if (~rst_n) begin
 		// Fun magic number ;)
-    	xShiftReg <= 64'h6C6F766569743F00;
+    xShiftReg <= 64'h6C6F766569743F00;
 		prevVsync <= 0;
+		counter <= 0;
+		height <= 0;
     end else begin
 		prevVsync <= vsync;
-		if (vsync && !prevVsync) xShiftReg <= {xShiftReg[62:0], randBit};
+		if (vsync && !prevVsync) begin
+      xShiftReg <= {xShiftReg[62:0], randBit};
+
+		  // Cloud registers
+		  counter <= counter + 1;
+
+		  if (counter == 0) begin
+		  	height <= xShiftReg[39:32]; // Arbitrary choice referencing my username
+		  end
+    end
     end
   end 
+
+  // Cloud logic
+  reg [7:0] height;
+  reg [9:0] counter;
+  // Centered coordinates (signed)
+  wire signed [10:0] cx = ($signed({1'b0, pix_x}) - {1'b0, counter});
+  wire signed [10:0] cy = ($signed({1'b0, pix_y}) - {3'b0, height});
+  wire signed [11:0] scaled_cx = {cx[10], cx[10], cx[10:1]};; 
+  wire signed [11:0] scaled_cy = {cy[10], cy}; // Sign-extend Y to match width
+
+  // Absolute values (using the scaled coordinates now)
+  wire [10:0] abs_x = scaled_cx[11] ? (~scaled_cx[10:0] + 1'b1) : scaled_cx[10:0];
+  wire [10:0] abs_y = scaled_cy[11] ? (~scaled_cy[10:0] + 1'b1) : scaled_cy[10:0];
+
+  // Distance approximation (max + min/2)
+  wire [10:0] max_d = (abs_x > abs_y) ? abs_x : abs_y;
+  wire [10:0] min_d = (abs_x < abs_y) ? abs_x : abs_y;
+  wire [10:0] radius = max_d + {1'b0, min_d[9:1]};
+
+
+  // Draw the actual cloud
+  wire isInCloud = radius <= 40;
+
 
   wire [1:0] green;
   wire sky;
@@ -40,7 +74,8 @@ module tt_um_28add11_latchup(
   assign green = xShiftReg[pix_x[9:4] -: 2];
   assign sky = pix_y <= (240 + {6'b0, pix_x[3:0]});
 
-  assign {R, G, B} = video_active ? sky ? {2'b10, 2'b10, 2'b11} : ((green == 2'b00) ? {2'b01, 2'b10, 2'b00} : {2'b00, green, 2'b00}) : 6'b0;
+  assign {R, G, B} = video_active ? sky ? (isInCloud ? {2'b11, 2'b11, 2'b11} : {2'b10, 2'b10, 2'b11}) : 
+  ((green == 2'b00) ? {2'b01, 2'b10, 2'b00} : {2'b00, green, 2'b00}) : 6'b0;
 
   // VGA signals
   wire hsync;
