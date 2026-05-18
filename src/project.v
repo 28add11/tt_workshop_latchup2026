@@ -21,18 +21,26 @@ module tt_um_28add11_latchup(
   reg [63:0] xShiftReg;
   wire randBit;
   assign randBit = ((xShiftReg[63] ~^ xShiftReg[62]) ~^ xShiftReg[60]) ~^ xShiftReg[59]; // Tap placement from https://docs.amd.com/v/u/en-US/xapp052
-  always @(posedge vsync, negedge rst_n) begin
+
+  reg prevVsync;
+  always @(posedge clk) begin
     if (~rst_n) begin
 		// Fun magic number ;)
-      xShiftReg <= 64'h6C6F766569743F00;
+    	xShiftReg <= 64'h6C6F766569743F00;
+		prevVsync <= 0;
     end else begin
-      xShiftReg <= {xShiftReg[62:0], randBit};
+		prevVsync <= vsync;
+		if (vsync && !prevVsync) xShiftReg <= {xShiftReg[62:0], randBit};
     end
   end 
 
   wire [1:0] green;
+  wire sky;
+
   assign green = xShiftReg[pix_x[9:4] -: 2];
-  assign {R, G, B} = video_active ? (green == 2'b00) ? {2'b01, 2'b10, 2'b00} : {2'b00, green, 2'b00} : 6'b0;
+  assign sky = pix_y <= (240 + {6'b0, pix_x[3:0]});
+
+  assign {R, G, B} = video_active ? sky ? {2'b10, 2'b10, 2'b11} : ((green == 2'b00) ? {2'b01, 2'b10, 2'b00} : {2'b00, green, 2'b00}) : 6'b0;
 
   // VGA signals
   wire hsync;
