@@ -18,21 +18,21 @@ module tt_um_28add11_latchup(
 );
 
   // X color bands shift register
-  reg [79:0] xShiftReg;
+  reg [63:0] xShiftReg;
   wire randBit;
-  assign randBit = ((xShiftReg[79] ~^ xShiftReg[78]) ~^ xShiftReg[42]) ~^ xShiftReg[41]; // Tap placement from https://docs.amd.com/v/u/en-US/xapp052
+  assign randBit = ((xShiftReg[63] ~^ xShiftReg[62]) ~^ xShiftReg[60]) ~^ xShiftReg[59]; // Tap placement from https://docs.amd.com/v/u/en-US/xapp052
   always @(posedge vsync, negedge rst_n) begin
     if (~rst_n) begin
 		// Fun magic number ;)
-      xShiftReg <= {72'h6C6F766569743F00, ui_in}; // Seed with custom value if you want
+      xShiftReg <= {56'h6C6F766569743F, ui_in}; // Seed with custom value if you want
     end else begin
-      xShiftReg <= {xShiftReg[78:0], randBit};
+      xShiftReg <= {xShiftReg[62:0], randBit};
     end
   end 
 
   wire [1:0] green;
-  assign green = xShiftReg[pix_x[9:3] -: 2];
-  assign {R, G, B} = (green == 2'b00) ? {2'b01, 2'b10, 2'b00} : {2'b00, green, 2'b00};
+  assign green = xShiftReg[pix_x[9:4] -: 2];
+  assign {R, G, B} = video_active ? (green == 2'b00) ? {2'b01, 2'b10, 2'b00} : {2'b00, green, 2'b00} : 6'b0;
 
   // VGA signals
   wire hsync;
