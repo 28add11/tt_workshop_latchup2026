@@ -24,7 +24,7 @@ module tt_um_28add11_latchup(
   always @(posedge vsync, negedge rst_n) begin
     if (~rst_n) begin
 		// Fun magic number ;)
-      xShiftReg <= {56'h6C6F766569743F, ui_in}; // Seed with custom value if you want
+      xShiftReg <= 64'h6C6F766569743F00;
     end else begin
       xShiftReg <= {xShiftReg[62:0], randBit};
     end
